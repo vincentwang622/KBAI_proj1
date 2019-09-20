@@ -37,7 +37,7 @@ class Agent:
         #give score on each option
         def testAnswer(potentialAnswer):
             if potentialAnswer == oneValues:
-                print 1
+                print  1
                 return 1
             elif potentialAnswer == twoValues:
                 print 2
@@ -67,13 +67,14 @@ class Agent:
             if a == b:
                mappings.append('identical')
                weight += 5
-               return mappings
+               return mappings, weight
             
-            #non identical mapping
-            elif a == c:
-                mappings.append('reflection')
-                weight += 4
-                return mappings
+
+            #elif a == c:
+                #mappings.append('reflection')
+                #weight += 4
+                #return mappings, weight
+
             else:
                 #find difference B to A
                 diffList = list(set(b.items()) - set(a.items()))
@@ -88,13 +89,14 @@ class Agent:
                 while diff:  
                     if 'angle' in diff: 
                         mappings.append('rotation')
+                        weight += 3
                         diff.remove('angle')
                     if 'fill' in diff:
                         mappings.append('fill')
                         diff.remove('fill')
-                    #if 'size' in diff:
-                        #mappings.append('size')
-                        #diff.remove('size')
+                    if 'size' in diff:
+                        mappings.append('size')
+                        diff.remove('size')
                     if 'shape' in diff:
                         mappings.append('shape')
                         diff.remove('shape')
@@ -103,18 +105,21 @@ class Agent:
                         diff.remove('alignment')
                     else:
                         diff.pop()
-                return  mappings
+                return  mappings, weight
             
         def generateDObject(mappings, i):
         #generate potential answer
             while mappings:
                 if 'identical' in mappings:
-                    DValues[i] = CValues[i]
+                    if AValues[i] == BValues[i]:
+                        DValues[i] = CValues[i]
+                    elif AValues[i] == CValues[i]:
+                        DValues[i] = BValues[i]
                     mappings.remove('identical')
                     
-                if 'reflection' in mappings:
-                    mappings.remove('reflection')
-                    DValues[i] = BValues[i]
+                #if 'reflection' in mappings:
+                    #mappings.remove('reflection')
+                    #DValues[i] = BValues[i]
 
                 if 'rotation' in mappings:
                     AAngle = int(AValues[i].get('angle',0))
@@ -122,7 +127,8 @@ class Agent:
                     CAngle = int(CValues[i].get('angle',0))
                     angleDiff = BAngle - AAngle
                     DAngle = CAngle - angleDiff
-                    DValues[i]['angle'] = str(DAngle)
+                    if 'angle' in DValues[i] and 'angle' in BValues[i]:
+                        DValues[i]['angle'] = str(DAngle)
                     mappings.remove('rotation')
 
                 if 'fill' in mappings:
@@ -136,7 +142,18 @@ class Agent:
                         DFill = 'yes'
                     DValues[i]['fill'] = DFill
                     mappings.remove('fill')
-                
+                    
+                if 'size' in mappings:
+                    #sizeList = ['huge', 'very large', 'large', 'medium','small', 'very small']
+                    ASize = AValues[i].get('size')
+                    BSize = BValues[i].get('size')
+                    CSize = CValues[i].get('size')
+                    DSize = ''
+                    if ASize == CSize:
+                        DSize = BSize
+                    DValues[i]['size'] = DSize
+                    mappings.remove('size')
+                    
                 if 'shape' in mappings:
                     AShape = AValues[i].get('shape')
                     BShape = BValues[i].get('shape')
@@ -144,6 +161,8 @@ class Agent:
                     DShape = ''
                     if AShape == CShape:
                         DShape = BShape
+                    elif AShape == BShape:
+                        DShape = CShape
                     DValues[i]['shape'] = DShape
                     mappings.remove('shape')
 
@@ -154,6 +173,8 @@ class Agent:
                     DAlignment = ''
                     if AAlignment == 'bottom-right' and BAlignment == 'bottom-left' and CAlignment == 'top-right':
                         DAlignment = 'top-left'
+                    elif AAlignment == 'top-left' and BAlignment == 'top-right' and CAlignment == 'bottom-left':
+                        DAlignment = 'bottom-right'
                     DValues[i]['alignment'] = DAlignment
                     mappings.remove('alignment')
 
@@ -232,9 +253,14 @@ class Agent:
         #mappings = []
         # one to one relationship
         if len(AValues) == 1 and len(BValues) == 1:
-            mappings = mappingPattern(AValues[0], BValues[0],CValues[0])
-
-            generateDObject(mappings,0)
+            mappingsH = mappingPattern(AValues[0], BValues[0],CValues[0])
+            mappingsV = mappingPattern(AValues[0], CValues[0],BValues[0])
+            if mappingsH[1]>=mappingsV[1]:
+                generateDObject(mappingsH[0],0)
+            else:
+                DValues = sorted(BFrame.values())                
+                generateDObject(mappingsV[0],0)
+                
             potentialAnswer = DValues
             
         #multiple to multiple relationship
@@ -255,15 +281,14 @@ class Agent:
     
                 if A1 and B1 and C1:
                     mappings1 = mappingPattern(A1, B1, C1) 
-                    generateDObject(mappings1,0)
+                    generateDObject(mappings1[0],0)
                 if A2 and B2 and C2:
                     mappings2 = mappingPattern(A2, B2, C2)
-                    generateDObject(mappings2,1)
+                    generateDObject(mappings2[0],1)
     
                 potentialAnswer = DValues
                 
             elif len(AValues) > len(BValues):            
-                #mapping = 'delete'
                 #detemine which object is deleted
                 dltList = [AValue for AValue in AValues if AValue not in BValues]
 
@@ -272,12 +297,10 @@ class Agent:
                         if dlt == DValue:
                             DValues.remove(DValue)
                 potentialAnswer = DValues
-            
+        
         answer = testAnswer(potentialAnswer)
         return answer
         
-        if mappings == '':
-            return 0
+        #if mappings == '':
+            #return 0
         
-        #if problem.problemType == "3x3":
-            #return -1
